@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Zeiterfassung – Hausarztzentrum Wetzel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+<!-- PWA / iPad Home-Screen -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1b2a4a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zeiterfassung">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --navy:#1b2a4a;
+    --navy-light:#28406e;
+    --blue:#3572ac;
+    --blue-dark:#1f5c96;
+    --blue-pale:#eaf3fb;
+    --blue-paler:#f5faff;
+    --border:#dbe8f4;
+    --text:#1c2b45;
+    --muted:#6b7f9c;
+    --green:#2f9e63;
+    --green-pale:#e5f6ec;
+    --red:#c1495b;
+    --red-pale:#fbe9eb;
+    --radius:16px;
+    --shadow:0 6px 24px rgba(27,42,74,.08);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    font-family:'Poppins', -apple-system, sans-serif;
+    background:#fff;
+    color:var(--text);
+    overscroll-behavior:none;
+    -webkit-user-select:none;
+    user-select:none;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  input, textarea{ -webkit-user-select:text; user-select:text; }
+  button{font-family:inherit; cursor:pointer;}
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex; align-items:center; gap:20px;
+    padding:22px 28px;
+  }
+  .logo-circle{
+    width:64px; height:64px; border-radius:50%;
+    background:var(--navy);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .logo-circle svg{width:34px; height:34px;}
+  .brand h1{
+    font-size:22px; font-weight:800; color:var(--blue-dark); margin:0; letter-spacing:.2px;
+  }
+  .brand p{margin:2px 0 0; color:var(--muted); font-size:13px;}
+  .top-actions{margin-left:auto; display:flex; align-items:center; gap:10px;}
+  .icon-btn{
+    width:42px; height:42px; border-radius:50%; border:1px solid var(--border);
+    background:#fff; display:flex; align-items:center; justify-content:center; color:var(--blue-dark);
+  }
+  .icon-btn:active{background:var(--blue-pale);}
+
+  /* ---------- Info bar ---------- */
+  .infobar{
+    background:var(--blue-pale);
+    border-top:1px solid var(--border);
+    border-bottom:1px solid var(--border);
+    padding:14px 28px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+  .infobar .date{font-weight:600; color:var(--navy); font-size:15px;}
+  .infobar .clock{font-weight:700; color:var(--blue-dark); font-size:22px; font-variant-numeric:tabular-nums;}
+  .infobar .hint{color:var(--muted); font-size:12.5px;}
+
+  /* ---------- Main grid ---------- */
+  main{padding:24px 28px 60px; max-width:1100px; margin:0 auto;}
+  .section-title{font-size:15px; font-weight:700; color:var(--navy); margin:0 0 14px;}
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--muted);
+  }
+  .empty-state .icon-btn{margin:0 auto 14px;}
+
+  .employee-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:16px;
+  }
+  .emp-card{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:20px 16px; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .emp-card:active{transform:scale(.98);}
+  .avatar{
+    width:56px; height:56px; border-radius:50%; background:var(--navy);
+    color:#fff; font-weight:700; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .emp-card .name{font-weight:600; font-size:15px; color:var(--text);}
+  .status-pill{
+    font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:20px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .status-pill.on{background:var(--green-pale); color:var(--green);}
+  .status-pill.off{background:var(--blue-pale); color:var(--muted);}
+  .dot{width:7px; height:7px; border-radius:50%; background:currentColor;}
+
+  footer.foot{text-align:center; color:var(--muted); font-size:12px; padding:20px; opacity:.8;}
+
+  /* ---------- Overlay / Modal shared ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(15,25,45,.55);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    z-index:50; opacity:0; pointer-events:none; transition:opacity .18s ease;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .sheet{
+    background:#fff; border-radius:20px; width:100%; max-width:420px;
+    box-shadow:0 20px 60px rgba(0,0,0,.25);
+    max-height:90vh; overflow-y:auto;
+  }
+  .sheet.wide{max-width:820px;}
+  .sheet-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 22px; border-bottom:1px solid var(--border);
+  }
+  .sheet-head h2{font-size:16px; margin:0; color:var(--navy); font-weight:700;}
+  .sheet-body{padding:22px;}
+  .x-btn{
+    width:32px; height:32px; border-radius:50%; border:none; background:var(--blue-pale);
+    color:var(--navy); font-size:16px; display:flex; align-items:center; justify-content:center;
+  }
+
+  /* punch modal */
+  .punch-avatar{
+    width:84px; height:84px; border-radius:50%; background:var(--navy); color:#fff;
+    font-size:28px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    margin:6px auto 4px;
+  }
+  .punch-name{text-align:center; font-weight:700; font-size:19px; color:var(--text); margin-bottom:2px;}
+  .punch-clock{text-align:center; font-variant-numeric:tabular-nums; font-size:34px; font-weight:700; color:var(--blue-dark); margin:8px 0 4px;}
+  .punch-status{text-align:center; margin-bottom:18px;}
+  .banner{
+    border-radius:12px; padding:12px 14px; font-size:13.5px; margin-bottom:16px; display:none;
+  }
+  .banner.show{display:block;}
+  .banner.warn{background:var(--red-pale); color:var(--red);}
+  .banner.info{background:var(--blue-pale); color:var(--blue-dark);}
+
+  .big-btn{
+    width:100%; border:none; border-radius:16px; padding:20px; font-size:18px; font-weight:700;
+    color:#fff; display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .big-btn.in{background:var(--blue-dark);}
+  .big-btn.out{background:var(--red);}
+  .big-btn:disabled{background:#c7d3e2; color:#fff;}
+  .big-btn:active{filter:brightness(.94);}
+
+  table{width:100%; border-collapse:collapse; margin-top:16px; font-size:13.5px;}
+  th{ text-align:left; color:var(--muted); font-weight:600; padding:8px 6px; border-bottom:1px solid var(--border);}
+  td{ padding:9px 6px; border-bottom:1px solid var(--border); color:var(--text);}
+  tr:nth-child(even) td{background:var(--blue-paler);}
+  .total-row{display:flex; justify-content:space-between; margin-top:14px; font-weight:700; color:var(--navy); font-size:14.5px;}
+  .del-link{color:var(--red); font-size:12px; border:none; background:none; padding:2px;}
+
+  /* forms */
+  label{display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin:14px 0 6px;}
+  label:first-child{margin-top:0;}
+  input[type=text], input[type=password], input[type=number], input[type=time], input[type=date], select{
+    width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px;
+    font-size:15px; font-family:inherit; background:var(--blue-paler); color:var(--text);
+  }
+  .row2{display:flex; gap:12px;}
+  .row2>div{flex:1;}
+  .btn{
+    border:none; border-radius:10px; padding:12px 18px; font-weight:600; font-size:14px;
+  }
+  .btn-primary{background:var(--blue-dark); color:#fff;}
+  .btn-outline{background:#fff; border:1px solid var(--border); color:var(--navy);}
+  .btn-danger{background:var(--red-pale); color:var(--red);}
+  .btn-block{width:100%;}
+  .stack{display:flex; flex-direction:column; gap:10px;}
+  .hstack{display:flex; gap:10px;}
+
+  /* admin tabs */
+  .tabs{display:flex; gap:6px; padding:14px 22px 0;}
+  .tab{
+    padding:9px 16px; border-radius:20px; font-size:13px; font-weight:600; border:1px solid var(--border);
+    background:#fff; color:var(--muted);
+  }
+  .tab.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+
+  .list-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 14px; border:1px solid var(--border); border-radius:12px; margin-bottom:10px;
+    background:var(--blue-paler);
+  }
+  .list-item .li-name{font-weight:600; font-size:14.5px;}
+  .list-item .li-sub{color:var(--muted); font-size:12px;}
+
+  @media (max-width:480px){
+    header.top{padding:18px 18px;}
+    .infobar{padding:12px 18px;}
+    main{padding:18px 18px 50px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo-circle">
+    <svg viewBox="0 0 100 100" fill="none"><path d="M8 52 H30 L38 34 L48 68 L58 24 L68 52 H92" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <div class="brand">
+    <h1>Hausarztzentrum Wetzel</h1>
+    <p>Zeiterfassung fürs Team</p>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn" id="btnAdmin" title="Verwaltung" aria-label="Verwaltung">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="infobar">
+  <div>
+    <div class="date" id="infoDate">–</div>
+    <div class="hint" id="infoHint">Erfassung möglich Mo–Fr, 07:30–19:00 Uhr</div>
+  </div>
+  <div class="clock" id="infoClock">--:--:--</div>
+</div>
+
+<main>
+  <div class="section-title">Team auswählen</div>
+  <div id="empGridWrap">
+    <div class="employee-grid" id="empGrid"></div>
+  </div>
+</main>
+
+<footer class="foot">Hausarztzentrum Wetzel · Interne Zeiterfassung · Daten werden lokal auf diesem iPad gespeichert</footer>
+
+<!-- ===== PUNCH MODAL ===== -->
+<div class="overlay" id="punchOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>Kommen / Gehen</h2>
+      <button class="x-btn" id="punchClose">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="punch-avatar" id="punchAvatar">–</div>
+      <div class="punch-name" id="punchName">–</div>
+      <div class="punch-clock" id="punchClock">--:--:--</div>
+      <div class="punch-status" id="punchStatus"></div>
+
+      <div class="banner" id="punchBanner"></div>
+
+      <button class="big-btn in" id="punchAction">Einstempeln</button>
+
+      <table id="punchTable">
+        <thead><tr><th>Von</th><th>Bis</th><th>Dauer</th><th></th></tr></thead>
+        <tbody id="punchRows"></tbody>
+      </table>
+      <div class="total-row"><span>Heute gesamt</span><span id="punchTotal">0:00 Std.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADMIN PIN GATE ===== -->
+<div class="overlay" id="pinOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Verwaltung – Anmeldung</h2><button class="x-btn" id="pinClose">✕</button></div>
+    <div class="sheet-body">
+      <label>Admin-PIN</label>
+      <input type="password" inputmode="numeric" id="pinInput" placeholder="••••" autocomplete="off">
+      <div class="banner warn" id="pinBanner">Falscher PIN, bitte erneut versuchen.</div>
+      <button class="btn btn-primary btn-block" style="margin-top:16px" id="pinSubmit">Anmelden</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADMIN PANEL ===== -->
+<div class="overlay" id="adminOverlay">
+  <div class="sheet wide">
+    <div class="sheet-head"><h2>Verwaltung</h2><button class="x-btn" id="adminClose">✕</button></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="mitarbeiter">Mitarbeiter</button>
+      <button class="tab" data-tab="zeiten">Zeiten</button>
+      <button class="tab" data-tab="einstellungen">Einstellungen</button>
+    </div>
+    <div class="sheet-body">
+
+      <div id="tabMitarbeiter">
+        <div id="empList"></div>
+        <div class="stack" style="margin-top:8px; border-top:1px solid var(--border); padding-top:16px;">
+          <label style="margin-top:0">Neue Mitarbeiterin / neuer Mitarbeiter</label>
+          <input type="text" id="newEmpName" placeholder="Name">
+          <button class="btn btn-primary" id="addEmpBtn">Hinzufügen</button>
+        </div>
+      </div>
+
+      <div id="tabZeiten" style="display:none">
+        <div class="row2">
+          <div>
+            <label>Mitarbeiter</label>
+            <select id="filterEmp"><option value="">Alle</option></select>
+          </div>
+          <div>
+            <label>Datum</label>
+            <input type="date" id="filterDate">
+          </div>
+        </div>
+        <div class="hstack" style="margin-top:14px">
+          <button class="btn btn-outline" id="exportCsv">CSV exportieren</button>
+          <button class="btn btn-outline" id="addEntryBtn">Eintrag manuell hinzufügen</button>
+        </div>
+        <table>
+          <thead><tr><th>Datum</th><th>Mitarbeiter</th><th>Von</th><th>Bis</th><th>Dauer</th><th></th></tr></thead>
+          <tbody id="entryRows"></tbody>
+        </table>
+      </div>
+
+      <div id="tabEinstellungen" style="display:none">
+        <label>Beginn Erfassungsfenster</label>
+        <input type="time" id="setStart">
+        <label>Ende Erfassungsfenster</label>
+        <input type="time" id="setEnd">
+        <label>Arbeitstage</label>
+        <div class="hstack" id="setDays" style="flex-wrap:wrap"></div>
+        <label>Neuen Admin-PIN setzen</label>
+        <input type="password" inputmode="numeric" id="setPin" placeholder="min. 4 Ziffern">
+        <button class="btn btn-primary" style="margin-top:16px" id="saveSettings">Speichern</button>
+        <div class="banner info show" style="margin-top:18px">Voreingestellt: Mo–Fr, 07:30–19:00 Uhr. Ein Einstempeln vor 07:30 Uhr wird automatisch auf 07:30 Uhr, ein Ausstempeln nach 19:00 Uhr auf 19:00 Uhr gesetzt.</div>
+        <button class="btn btn-danger btn-block" style="margin-top:24px" id="resetData">Alle Daten zurücksetzen</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== MANUAL ENTRY MODAL ===== -->
+<div class="overlay" id="manualOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Eintrag hinzufügen</h2><button class="x-btn" id="manualClose">✕</button></div>
+    <div class="sheet-body">
+      <label>Mitarbeiter</label>
+      <select id="manualEmp"></select>
+      <label>Datum</label>
+      <input type="date" id="manualDate">
+      <div class="row2">
+        <div><label>Von</label><input type="time" id="manualIn"></div>
+        <div><label>Bis</label><input type="time" id="manualOut"></div>
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:18px" id="manualSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- Storage ---------------- */
+const LS_EMP = 'wetzel_employees';
+const LS_ENTRIES = 'wetzel_entries';
+const LS_SETTINGS = 'wetzel_settings';
+
+const defaultSettings = { adminPin:'0000', startTime:'07:30', endTime:'19:00', workDays:[1,2,3,4,5] };
+
+function load(key, fallback){
+  try{ const v = JSON.parse(localStorage.getItem(key)); return v ?? fallback; }catch(e){ return fallback; }
+}
+function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+let employees = load(LS_EMP, []);
+let entries = load(LS_ENTRIES, []);
+let settings = Object.assign({}, defaultSettings, load(LS_SETTINGS, {}));
+
+function persistAll(){
+  save(LS_EMP, employees);
+  save(LS_ENTRIES, entries);
+  save(LS_SETTINGS, settings);
+}
+
+/* ---------------- Helpers ---------------- */
+const DAY_NAMES = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+const DAY_SHORT = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+function pad(n){ return n.toString().padStart(2,'0'); }
+function todayISO(d=new Date()){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function hmNow(d=new Date()){ return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function toMin(hm){ const [h,m]=hm.split(':').map(Number); return h*60+m; }
+function toHM(min){ min=Math.max(0,min); return `${pad(Math.floor(min/60))}:${pad(min%60)}`; }
+function fmtDate(d=new Date()){ return `${DAY_NAMES[d.getDay()]}, ${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`; }
+function isWorkday(d=new Date()){ return settings.workDays.includes(d.getDay()); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function initials(name){ return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+function durationLabel(inHM, outHM){
+  if(!outHM) return '–';
+  let mins = toMin(outHM) - toMin(inHM);
+  if(mins < 0) mins = 0;
+  return `${Math.floor(mins/60)}:${pad(mins%60)} Std.`;
+}
+function durationMin(inHM, outHM){
+  if(!outHM) return 0;
+  return Math.max(0, toMin(outHM) - toMin(inHM));
+}
+
+/* ---------------- Live clock ---------------- */
+function tick(){
+  const now = new Date();
+  const t = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  document.getElementById('infoClock').textContent = t;
+  document.getElementById('infoDate').textContent = fmtDate(now);
+  const punchClock = document.getElementById('punchClock');
+  if(punchClock) punchClock.textContent = t;
+}
+setInterval(tick, 1000); tick();
+
+/* ---------------- Rendering: Employee grid ---------------- */
+function entriesFor(empId, date){ return entries.filter(e=>e.employeeId===empId && e.date===date); }
+function openEntryFor(empId, date){ return entries.find(e=>e.employeeId===empId && e.date===date && !e.out); }
+
+function renderGrid(){
+  const grid = document.getElementById('empGrid');
+  const wrap = document.getElementById('empGridWrap');
+  if(employees.length===0){
+    wrap.innerHTML = `<div class="empty-state">
+      <div class="icon-btn" style="margin:0 auto 14px; width:52px;height:52px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <p>Noch kein Team angelegt.<br>Öffnen Sie die Verwaltung (Zahnrad oben rechts), um Mitarbeiterinnen und Mitarbeiter hinzuzufügen.</p>
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = '<div class="employee-grid" id="empGrid"></div>';
+  const g = document.getElementById('empGrid');
+  const today = todayISO();
+  g.innerHTML = employees.map(emp=>{
+    const open = openEntryFor(emp.id, today);
+    const statusClass = open ? 'on' : 'off';
+    const statusText = open ? `Im Dienst seit ${open.in}` : 'Nicht eingestempelt';
+    return `<div class="emp-card" data-id="${emp.id}">
+      <div class="avatar">${initials(emp.name)}</div>
+      <div class="name">${emp.name}</div>
+      <div class="status-pill ${statusClass}"><span class="dot"></span>${statusText}</div>
+    </div>`;
+  }).join('');
+  g.querySelectorAll('.emp-card').forEach(card=>{
+    card.addEventListener('click', ()=> openPunch(card.dataset.id));
+  });
+}
+
+/* ---------------- Punch modal ---------------- */
+let currentEmpId = null;
+function openPunch(empId){
+  currentEmpId = empId;
+  const emp = employees.find(e=>e.id===empId);
+  if(!emp) return;
+  document.getElementById('punchAvatar').textContent = initials(emp.name);
+  document.getElementById('punchName').textContent = emp.name;
+  document.getElementById('punchBanner').className = 'banner';
+  renderPunchDetails();
+  showOverlay('punchOverlay');
+}
+function renderPunchDetails(){
+  const emp = employees.find(e=>e.id===currentEmpId);
+  if(!emp) return;
+  const today = todayISO();
+  const open = openEntryFor(emp.id, today);
+  const statusEl = document.getElementById('punchStatus');
+  statusEl.innerHTML = open
+    ? `<span class="status-pill on"><span class="dot"></span>Im Dienst seit ${open.in} Uhr</span>`
+    : `<span class="status-pill off"><span class="dot"></span>Nicht eingestempelt</span>`;
+
+  const btn = document.getElementById('punchAction');
+  btn.className = 'big-btn ' + (open ? 'out' : 'in');
+  btn.textContent = open ? 'Ausstempeln' : 'Einstempeln';
+
+  const todaysEntries = entriesFor(emp.id, today).sort((a,b)=>a.in.localeCompare(b.in));
+  document.getElementById('punchRows').innerHTML = todaysEntries.map(e=>`
+    <tr><td>${e.in}</td><td>${e.out||'–'}</td><td>${durationLabel(e.in,e.out)}</td></tr>
+  `).join('') || `<tr><td colspan="3" style="color:var(--muted)">Heute noch keine Buchung</td></tr>`;
+
+  const totalMin = todaysEntries.reduce((s,e)=>s+durationMin(e.in,e.out),0);
+  document.getElementById('punchTotal').textContent = `${Math.floor(totalMin/60)}:${pad(totalMin%60)} Std.`;
+}
+
+function showBanner(msg){
+  const b = document.getElementById('punchBanner');
+  b.textContent = msg;
+  b.className = 'banner warn show';
+}
+
+document.getElementById('punchAction').addEventListener('click', ()=>{
+  if(!currentEmpId) return;
+  const now = new Date();
+  const today = todayISO(now);
+  const startMin = toMin(settings.startTime);
+  const endMin = toMin(settings.endTime);
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const open = openEntryFor(currentEmpId, today);
+
+  if(!open){
+    // Clock in
+    if(!isWorkday(now)){
+      showBanner(`Heute (${DAY_NAMES[now.getDay()]}) ist laut Plan kein Arbeitstag für die Zeiterfassung.`);
+      return;
+    }
+    if(nowMin >= endMin){
+      showBanner(`Die Zeiterfassung ist für heute bereits beendet (bis ${settings.endTime} Uhr).`);
+      return;
+    }
+    const effectiveMin = Math.max(nowMin, startMin);
+    entries.push({ id: uid(), employeeId: currentEmpId, date: today, in: toHM(effectiveMin), out: null });
+    if(nowMin < startMin){
+      showBanner(`Hinweis: Arbeitsbeginn erst ab ${settings.startTime} Uhr möglich – Start wurde auf ${settings.startTime} Uhr gesetzt.`);
+    } else {
+      document.getElementById('punchBanner').className='banner';
+    }
+  } else {
+    // Clock out
+    let effectiveMin = Math.min(nowMin, endMin);
+    if(effectiveMin < toMin(open.in)) effectiveMin = toMin(open.in);
+    open.out = toHM(effectiveMin);
+    if(nowMin > endMin){
+      showBanner(`Hinweis: Die Zeiterfassung endet um ${settings.endTime} Uhr – Ende wurde auf ${settings.endTime} Uhr gesetzt.`);
+    } else {
+      document.getElementById('punchBanner').className='banner';
+    }
+  }
+  persistAll();
+  renderPunchDetails();
+  renderGrid();
+});
+
+document.getElementById('punchClose').addEventListener('click', ()=> hideOverlay('punchOverlay'));
+
+/* ---------------- Overlay helpers ---------------- */
+function showOverlay(id){ document.getElementById(id).classList.add('show'); }
+function hideOverlay(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', (e)=>{ if(e.target===ov) hideOverlay(ov.id); });
+});
+
+/* ---------------- Admin: PIN gate ---------------- */
+document.getElementById('btnAdmin').addEventListener('click', ()=>{
+  document.getElementById('pinInput').value='';
+  document.getElementById('pinBanner').className='banner warn';
+  showOverlay('pinOverlay');
+  setTimeout(()=>document.getElementById('pinInput').focus(), 150);
+});
+document.getElementById('pinClose').addEventListener('click', ()=> hideOverlay('pinOverlay'));
+document.getElementById('pinSubmit').addEventListener('click', submitPin);
+document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submitPin(); });
+function submitPin(){
+  const val = document.getElementById('pinInput').value;
+  if(val === settings.adminPin){
+    hideOverlay('pinOverlay');
+    openAdmin();
+  } else {
+    document.getElementById('pinBanner').className = 'banner warn show';
+  }
+}
+
+/* ---------------- Admin panel ---------------- */
+function openAdmin(){
+  renderAdminAll();
+  showOverlay('adminOverlay');
+}
+document.getElementById('adminClose').addEventListener('click', ()=> hideOverlay('adminOverlay'));
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    ['mitarbeiter','zeiten','einstellungen'].forEach(name=>{
+      document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)).style.display = (name===tab.dataset.tab) ? '' : 'none';
+    });
+  });
+});
+
+function renderAdminAll(){
+  renderEmpList();
+  renderFilterEmp();
+  renderEntryRows();
+  renderSettingsForm();
+  renderManualSelect();
+}
+
+/* --- Mitarbeiter tab --- */
+function renderEmpList(){
+  const wrap = document.getElementById('empList');
+  if(employees.length===0){ wrap.innerHTML = `<p style="color:var(--muted); font-size:13.5px;">Noch keine Mitarbeiter angelegt.</p>`; return; }
+  wrap.innerHTML = employees.map(emp=>`
+    <div class="list-item">
+      <div><div class="li-name">${emp.name}</div><div class="li-sub">${entries.filter(e=>e.employeeId===emp.id).length} Buchungen gesamt</div></div>
+      <button class="del-link" data-del="${emp.id}">Entfernen</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(confirm('Mitarbeiter und zugehörige Zeiteinträge wirklich entfernen?')){
+        const id = btn.dataset.del;
+        employees = employees.filter(e=>e.id!==id);
+        entries = entries.filter(e=>e.employeeId!==id);
+        persistAll();
+        renderAdminAll();
+        renderGrid();
+      }
+    });
+  });
+}
+document.getElementById('addEmpBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('newEmpName');
+  const name = input.value.trim();
+  if(!name) return;
+  employees.push({ id: uid(), name });
+  input.value='';
+  persistAll();
+  renderAdminAll();
+  renderGrid();
+});
+
+/* --- Zeiten tab --- */
+function renderFilterEmp(){
+  const sel = document.getElementById('filterEmp');
+  sel.innerHTML = '<option value="">Alle</option>' + employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+}
+function renderManualSelect(){
+  const sel = document.getElementById('manualEmp');
+  sel.innerHTML = employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+}
+function empName(id){ const e = employees.find(x=>x.id===id); return e ? e.name : '(gelöscht)'; }
+
+function renderEntryRows(){
+  const empFilter = document.getElementById('filterEmp').value;
+  const dateFilter = document.getElementById('filterDate').value;
+  let list = entries.slice().sort((a,b)=> (b.date+b.in).localeCompare(a.date+a.in));
+  if(empFilter) list = list.filter(e=>e.employeeId===empFilter);
+  if(dateFilter) list = list.filter(e=>e.date===dateFilter);
+  document.getElementById('entryRows').innerHTML = list.map(e=>`
+    <tr>
+      <td>${e.date.split('-').reverse().join('.')}</td>
+      <td>${empName(e.employeeId)}</td>
+      <td>${e.in}</td>
+      <td>${e.out||'–'}</td>
+      <td>${durationLabel(e.in,e.out)}</td>
+      <td><button class="del-link" data-del-entry="${e.id}">Löschen</button></td>
+    </tr>
+  `).join('') || `<tr><td colspan="6" style="color:var(--muted)">Keine Einträge gefunden</td></tr>`;
+  document.querySelectorAll('[data-del-entry]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      entries = entries.filter(e=>e.id!==btn.dataset.delEntry);
+      persistAll();
+      renderEntryRows();
+      renderGrid();
+    });
+  });
+}
+document.getElementById('filterEmp').addEventListener('change', renderEntryRows);
+document.getElementById('filterDate').addEventListener('change', renderEntryRows);
+
+document.getElementById('exportCsv').addEventListener('click', ()=>{
+  const rows = [['Datum','Mitarbeiter','Von','Bis','Dauer (Std)']];
+  entries.slice().sort((a,b)=>(a.date+a.in).localeCompare(b.date+b.in)).forEach(e=>{
+    const mins = durationMin(e.in,e.out);
+    rows.push([e.date, empName(e.employeeId), e.in, e.out||'', (mins/60).toFixed(2)]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `zeiterfassung_wetzel_${todayISO()}.csv`;
+  a.click();
+});
+
+document.getElementById('addEntryBtn').addEventListener('click', ()=>{
+  if(employees.length===0){ alert('Bitte zuerst einen Mitarbeiter anlegen.'); return; }
+  renderManualSelect();
+  document.getElementById('manualDate').value = todayISO();
+  document.getElementById('manualIn').value = settings.startTime;
+  document.getElementById('manualOut').value = '';
+  showOverlay('manualOverlay');
+});
+document.getElementById('manualClose').addEventListener('click', ()=> hideOverlay('manualOverlay'));
+document.getElementById('manualSave').addEventListener('click', ()=>{
+  const employeeId = document.getElementById('manualEmp').value;
+  const date = document.getElementById('manualDate').value;
+  const inT = document.getElementById('manualIn').value;
+  const outT = document.getElementById('manualOut').value || null;
+  if(!employeeId || !date || !inT){ alert('Bitte Mitarbeiter, Datum und Beginn angeben.'); return; }
+  entries.push({ id: uid(), employeeId, date, in: inT, out: outT });
+  persistAll();
+  hideOverlay('manualOverlay');
+  renderEntryRows();
+  renderGrid();
+});
+
+/* --- Einstellungen tab --- */
+function renderSettingsForm(){
+  document.getElementById('setStart').value = settings.startTime;
+  document.getElementById('setEnd').value = settings.endTime;
+  const daysWrap = document.getElementById('setDays');
+  daysWrap.innerHTML = [1,2,3,4,5,6,0].map(d=>`
+    <label style="display:flex; align-items:center; gap:6px; margin:0; font-weight:500; color:var(--text);">
+      <input type="checkbox" data-day="${d}" ${settings.workDays.includes(d)?'checked':''} style="width:auto;"> ${DAY_SHORT[d]}
+    </label>
+  `).join('');
+  document.getElementById('setPin').value = '';
+}
+document.getElementById('saveSettings').addEventListener('click', ()=>{
+  const start = document.getElementById('setStart').value || settings.startTime;
+  const end = document.getElementById('setEnd').value || settings.endTime;
+  const days = Array.from(document.querySelectorAll('#setDays input:checked')).map(i=>Number(i.dataset.day));
+  const newPin = document.getElementById('setPin').value.trim();
+  settings.startTime = start;
+  settings.endTime = end;
+  settings.workDays = days.length ? days : settings.workDays;
+  if(newPin.length >= 4) settings.adminPin = newPin;
+  persistAll();
+  document.getElementById('infoHint').textContent = `Erfassung möglich ${settings.workDays.map(d=>DAY_SHORT[d]).join('/')}., ${settings.startTime}–${settings.endTime} Uhr`;
+  alert('Einstellungen gespeichert.');
+});
+document.getElementById('resetData').addEventListener('click', ()=>{
+  if(confirm('Wirklich ALLE Mitarbeiter und Zeiteinträge unwiderruflich löschen?')){
+    employees = []; entries = []; settings = Object.assign({}, defaultSettings);
+    persistAll();
+    renderAdminAll();
+    renderGrid();
+  }
+});
+
+/* ---------------- Init ---------------- */
+document.getElementById('infoHint').textContent = `Erfassung möglich ${settings.workDays.slice().sort().map(d=>DAY_SHORT[d]).join('/')}., ${settings.startTime}–${settings.endTime} Uhr`;
+renderGrid();
+
+/* ---------------- Service worker (offline PWA) ---------------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
